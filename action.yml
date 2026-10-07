@@ -1,0 +1,102 @@
+name: 'EOSC Arena software quality (resqui)'
+description: 'Assess research software quality indicators with resqui, report the results and optionally fail the job.'
+author: 'BiodataAnalysisGroup'
+
+inputs:
+  config:
+    description: 'Path to a resqui configuration file, relative to the repository root. Defaults to the configuration bundled with this action.'
+    required: false
+    default: ''
+  github-token:
+    description: 'GitHub token used by plugins that query the GitHub API (HowFairIs, OpenSSF Scorecard).'
+    required: false
+    default: ${{ github.token }}
+  fail-on:
+    description: 'Comma-separated check outcomes that fail the job: "fail", "not_run" or "fail,not_run". Empty never fails on results.'
+    required: false
+    default: ''
+  resqui-version:
+    description: 'Git ref (tag, branch or commit) of BiodataAnalysisGroup/QualityPipelines to install resqui from.'
+    required: false
+    default: 'v0.2.0-biodata.2'
+  job-summary:
+    description: 'Add the Markdown report to the job summary ("true" or "false").'
+    required: false
+    default: 'true'
+  artifact-name:
+    description: 'Name of the artifact holding the JSON and Markdown reports. Empty disables the upload.'
+    required: false
+    default: 'resqui-report'
+
+outputs:
+  passed:
+    description: 'Number of checks whose indicator is satisfied.'
+    value: ${{ steps.run.outputs.passed }}
+  failed:
+    description: 'Number of checks whose indicator is not satisfied.'
+    value: ${{ steps.run.outputs.failed }}
+  not-run:
+    description: 'Number of checks that could not be performed (e.g. a plugin needing Docker on a runner without it).'
+    value: ${{ steps.run.outputs.not-run }}
+  report-json:
+    description: 'Path to the JSON-LD report.'
+    value: ${{ steps.run.outputs.report-json }}
+  report-markdown:
+    description: 'Path to the Markdown report.'
+    value: ${{ steps.run.outputs.report-markdown }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Install resqui
+      shell: bash
+      env:
+        RESQUI_VERSION: ${{ inputs.resqui-version }}
+      run: |
+        python -m venv "$RUNNER_TEMP/resqui-venv"
+        "$RUNNER_TEMP/resqui-venv/bin/python" -m pip install --quiet --upgrade pip
+        "$RUNNER_TEMP/resqui-venv/bin/python" -m pip install --quiet \
+          "git+https://github.com/BiodataAnalysisGroup/QualityPipelines.git@${RESQUI_VERSION}"
+
+    - name: Run resqui
+      id: run
+      shell: bash
+      env:
+        RESQUI_BIN: ${{ runner.temp }}/resqui-venv/bin/resqui
+        RESQUI_CONFIG: ${{ inputs.config || format('{0}/configurations/default.json', github.action_path) }}
+        RESQUI_GITHUB_TOKEN: ${{ inputs.github-token }}
+        RESQUI_FAIL_ON: ${{ inputs.fail-on }}
+        RESQUI_OUTPUT_DIR: ${{ runner.temp }}/resqui-report
+      run: bash "$GITHUB_ACTION_PATH/scripts/run-resqui.sh"
+
+    - name: Add report to job summary
+      if: inputs.job-summary == 'true' && steps.run.outputs.report-markdown != ''
+      shell: bash
+      env:
+        REPORT: ${{ steps.run.outputs.report-markdown }}
+      run: cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload reports
+      if: inputs.artifact-name != '' && steps.run.outputs.report-json != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ runner.temp }}/resqui-report/
+
+    - name: Check result
+      shell: bash
+      env:
+        EXIT_CODE: ${{ steps.run.outputs.exit-code }}
+        FAILED: ${{ steps.run.outputs.failed }}
+        NOT_RUN: ${{ steps.run.outputs.not-run }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/check-result.sh"
+
+branding:
+  icon: 'check-circle'
+  color: 'purple'

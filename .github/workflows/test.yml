@@ -1,0 +1,51 @@
+name: Test action
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the action's scripts
+        run: bash tests/test-scripts.sh
+
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # This repository has a LICENSE but no CITATION.cff: 1 pass, 1 fail.
+      - name: Run without failing on results
+        id: report-only
+        uses: ./
+        with:
+          config: tests/fixtures/quick.json
+          artifact-name: resqui-report-only
+
+      - name: Check outputs
+        env:
+          PASSED: ${{ steps.report-only.outputs.passed }}
+          FAILED: ${{ steps.report-only.outputs.failed }}
+          NOT_RUN: ${{ steps.report-only.outputs.not-run }}
+          REPORT: ${{ steps.report-only.outputs.report-json }}
+        run: |
+          echo "passed=$PASSED failed=$FAILED not-run=$NOT_RUN"
+          test "$PASSED" = 1 && test "$FAILED" = 1 && test "$NOT_RUN" = 0
+          test -f "$REPORT"
+
+      - name: Run with fail-on
+        id: gate
+        continue-on-error: true
+        uses: ./
+        with:
+          config: tests/fixtures/quick.json
+          fail-on: fail
+          artifact-name: resqui-gate
+
+      - name: Check that fail-on failed the step
+        env:
+          OUTCOME: ${{ steps.gate.outcome }}
+        run: test "$OUTCOME" = failure
