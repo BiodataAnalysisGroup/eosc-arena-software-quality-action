@@ -49,7 +49,7 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
 
@@ -83,7 +83,7 @@ runs:
 
     - name: Upload reports
       if: inputs.artifact-name != '' && steps.run.outputs.report-json != ''
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ runner.temp }}/resqui-report/

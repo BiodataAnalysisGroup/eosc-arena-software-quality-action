@@ -8,14 +8,14 @@ jobs:
   scripts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Test the action's scripts
         run: bash tests/test-scripts.sh
 
   self-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # This repository has a LICENSE but no CITATION.cff: 1 pass, 1 fail.
       - name: Run without failing on results
