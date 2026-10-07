@@ -18,7 +18,7 @@ inputs:
   resqui-version:
     description: 'Git ref (tag, branch or commit) of BiodataAnalysisGroup/QualityPipelines to install resqui from.'
     required: false
-    default: 'v0.2.0-biodata.2'
+    default: 'v0.2.0+biodata.2'
   job-summary:
     description: 'Add the Markdown report to the job summary ("true" or "false").'
     required: false
