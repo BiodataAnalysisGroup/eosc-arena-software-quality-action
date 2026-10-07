@@ -140,6 +140,37 @@ or pull request being tested. "Repository" indicators look at the repository on
 GitHub as a whole: on a feature branch or pull request they still reflect the
 default branch and the repository's history.
 
+Some details of how the checks decide, observed in the [example](#example):
+
+- `software_has_license` also accepts the license GitHub detects for the
+  repository, which comes from the default branch. A branch without a
+  `LICENSE` file can still pass when the default branch has one.
+- `software_has_citation` accepts a `CITATION.cff` and also a "Citation"
+  section in the README.
+- `descriptive_metadata` needs a description, programming language, creation
+  date and keywords. A `codemeta.json` provides all four.
+- `persistent_and_unique_identifier` looks for an identifier such as a DOI,
+  which you typically get by archiving a release (for example on Zenodo).
+
+## Example
+
+[`thodkatz/everse-resqui-demo`](https://github.com/thodkatz/everse-resqui-demo/tree/example/quality-action)
+contains a small growth-curve fitting package whose history shows the action
+at work, one commit per step:
+
+| Step | Commit | Configuration | Result |
+|---|---|---|---|
+| 1. A research script with typical gaps: no license file, citation, dependency list, version or tests | [`374465e`](https://github.com/thodkatz/everse-resqui-demo/commit/374465e) | default, report only | [4 passed, 10 failed](https://github.com/thodkatz/everse-resqui-demo/actions/runs/37674810693) |
+| 2. Packaged with `pyproject.toml`, tests, a test workflow, `LICENSE`, `CITATION.cff` and a README | [`e3e3326`](https://github.com/thodkatz/everse-resqui-demo/commit/e3e3326) | default, report only | [8 passed, 6 failed](https://github.com/thodkatz/everse-resqui-demo/actions/runs/37675169067) |
+| 3. Adds `codemeta.json` and enforces the nine indicators it meets (`.resqui.json`, `fail-on: fail,not_run`) | [`e57a9ab`](https://github.com/thodkatz/everse-resqui-demo/commit/e57a9ab) | `.resqui.json`, gate | [9/9 passed](https://github.com/thodkatz/everse-resqui-demo/actions/runs/37677917948) |
+| Regression: the tests and `CITATION.cff` are deleted ([branch](https://github.com/thodkatz/everse-resqui-demo/tree/example/quality-action-regression)) | [`743ac7a`](https://github.com/thodkatz/everse-resqui-demo/commit/743ac7a) | `.resqui.json`, gate | [job fails: `software_has_tests`](https://github.com/thodkatz/everse-resqui-demo/actions/runs/37678149006) |
+
+The indicators still failing after step 2 are the ones a code change alone
+cannot fix: GitHub releases, a Software Heritage archive, a DOI, and OpenSSF
+Scorecard's repository-level checks. Step 3 leaves them out of the gate. In
+the regression, the citation check keeps passing because the README still has
+a "Citation" section.
+
 ## Runner requirements
 
 - **Python** is set up by the action.
